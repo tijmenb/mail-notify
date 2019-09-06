@@ -13,10 +13,29 @@ jobs:
       uses: actions/setup-ruby@v1
       with:
         ruby-version: 2.6.x
+    - name: Set bundle cache name
+      run: |
+        MD5=($(md5sum ./Gemfile.lock))
+        CACHE_FILENAME="bundle-$MD5.tar.gz"
+    - uses: actions/download-artifact@master
+      with:
+        name: $CACHE_FILENAME
+      continue-on-error: true
+    - name: Unzip dependencies
+      run: |
+        tar -zxvf $CACHE_FILENAME
+      continue-on-error: true
     - name: Build and test with Rake
       run: |
         sudo apt-get update
         sudo apt-get install sqlite3 libsqlite3-dev
         gem install bundler
-        bundle install --jobs 4 --retry 3
+        bundle install --jobs 4 --retry 3 --path ./vendor/bundle
         bundle exec rake
+    - name: Prepare dependencies for upload
+      run: |
+        tar -zcvf $CACHE_FILENAME ./vendor/bundle
+    - uses: actions/upload-artifact@master
+      with:
+          name: $CACHE_FILENAME
+          path: $CACHE_FILENAME
